@@ -1,0 +1,17 @@
+{
+  "source": {
+    "org_url": "https://dev.azure.com/chimerabeta",
+    "project": "Chimera",
+    "pat": "YOUR_SOURCE_PAT_HERE"
+  },
+  "target": {
+    "org_url": "https://dev.azure.com/appLockr",
+    "project": "appLockr",
+    "pat": "YOUR_TARGET_PAT_HERE"
+  },
+  "options": {
+    "state_file": "migration_state.json",
+    "user_mapping_csv": "Repo migration - work items(Sheet1).csv",
+    "limit": null
+  }
+}

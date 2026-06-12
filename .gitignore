@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+config.json
+migration_state.json
+user_mapping.json
+*.csv
+l1.txt
+.env
+tests/
