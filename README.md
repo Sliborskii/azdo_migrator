@@ -1,98 +1,98 @@
 # Azure DevOps Migration Tool (azdo_migrator)
 
-Утилита для полной и аккуратной миграции проектов между организациями Azure DevOps. 
+A comprehensive utility for full and accurate migration of projects between Azure DevOps organizations.
 
-Отличительной особенностью этого инструмента является его способность не просто "скопировать" данные, но и **ретроспективно исправить** исторические артефакты:
-- Починить "фантомных" пользователей (у которых сменился email-домен).
-- Скачать и перезалить внутренние картинки из описаний задач.
-- Починить битые ссылки на задачи (в том числе упоминания `#123`).
-- Заменить абсолютные ссылки на Wiki-страницы на работающие динамические линки.
-- Сделать массовую замену перекрестных ссылок внутри Markdown-файлов самой Wiki.
+A key feature of this tool is its ability to not just "copy" data, but to **retroactively fix** historical artifacts:
+- Fix "phantom" users (whose email domains have changed).
+- Download and re-upload inline images from task descriptions.
+- Fix broken links to tasks (including `#123` mentions).
+- Replace absolute links to Wiki pages with working dynamic links.
+- Perform bulk replacements of cross-links within the Wiki Markdown files themselves.
 
-## 1. Подготовка (Prerequisites)
+## 1. Preparation (Prerequisites)
 
 1. **Python 3.9+**
-2. Склонируйте репозиторий и установите зависимости:
+2. Clone the repository and install dependencies:
    ```bash
    python -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
-3. Создайте `config.json` на основе `config.example.json`. Вам потребуются:
-   - **Source PAT** (Personal Access Token) со старого Azure DevOps.
-   - **Target PAT** с нового Azure DevOps.
-   > Токены должны иметь права **Read & Write** на Work Items, Identity и Graph.
+3. Create `config.json` based on `config.example.json`. You will need:
+   - **Source PAT** (Personal Access Token) from the old Azure DevOps.
+   - **Target PAT** from the new Azure DevOps.
+   > The tokens must have **Read & Write** permissions for Work Items, Identity, and Graph.
 
-## 2. Шаг 1: Базовая миграция
+## 2. Step 1: Base Migration
 
-На этом этапе мы переносим структуру и сами задачи.
+At this stage, we migrate the structure and the tasks themselves.
 
-1. **Синхронизация спринтов и Area Paths:**
+1. **Sync Sprints and Area Paths:**
    ```bash
    python -m azdo_migrator.cli --config config.json --sync-sprints
    ```
 
-2. **Миграция всех Work Items:**
+2. **Migrate all Work Items:**
    ```bash
    python -m azdo_migrator.cli --config config.json --sync-workitems
    ```
    > [!WARNING]
-   > При выполнении этой команды создастся файл `migration_state.json`, который содержит "карту" старых ID и новых ID задач. **Не удаляйте его!** Он жизненно необходим для всех последующих исправлений.
+   > Executing this command creates a `migration_state.json` file, which contains a "map" of old IDs to new task IDs. **Do not delete it!** It is strictly required for all subsequent fixes.
 
-## 3. Шаг 2: Лечение "детских болезней" (Post-Migration Fixes)
+## 3. Step 2: Post-Migration Fixes
 
-В момент создания задач система еще не знает всех связей (так как некоторые задачи еще не созданы). Кроме того, у сотрудников могли измениться почтовые домены.
+At the time of task creation, the system does not yet know all the links (since some tasks have not been created yet). Furthermore, employee email domains might have changed.
 
-### А) Исправление исполнителей (Users)
-1. **Генерация карты пользователей:**
+### A) Fix Assignees (Users)
+1. **Generate User Mapping:**
    ```bash
    python -m azdo_migrator.cli --config config.json --generate-users
    ```
-   Это выгрузит списки людей из старого и нового Graph API и создаст `user_mapping.json`.
-2. **Ручная выверка:** Откройте `user_mapping.json`. Те пользователи, для которых система не нашла совпадений в новом ADO, будут отмечены как `null`. Вручную впишите туда валидный email нового сотрудника (или свой email), на которого вы хотите перевесить эти задачи.
-3. **Применение исполнителей:**
+   This will fetch lists of people from the old and new Graph APIs and create `user_mapping.json`.
+2. **Manual Review:** Open `user_mapping.json`. Users for whom the system found no match in the new ADO will be marked as `null`. Manually enter a valid email of a new employee (or your own email) to whom you want to assign these tasks.
+3. **Apply Assignees:**
    ```bash
    python -m azdo_migrator.cli --config config.json --fix-users
    ```
 
-### Б) Исправление ссылок, картинок и упоминаний
-Выполните эти три команды по очереди, чтобы "причесать" текст в описаниях и комментариях:
+### B) Fix Links, Images, and Mentions
+Run these three commands sequentially to "clean up" the text in descriptions and comments:
 ```bash
-# Исправляет упоминания людей (@Name)
+# Fixes user mentions (@Name)
 python -m azdo_migrator.cli --config config.json --fix-mentions
 
-# Скачивает картинки из старого ADO и заливает в новый
+# Downloads images from old ADO and uploads to the new one
 python -m azdo_migrator.cli --config config.json --fix-images
 
-# Чинит перекрестные ссылки на задачи (в т.ч. #123) и ссылки на Wiki
+# Fixes cross-links to tasks (incl. #123) and links to the Wiki
 python -m azdo_migrator.cli --config config.json --fix-links
 ```
 
-## 4. Шаг 3: Миграция самой Wiki
+## 4. Step 3: Wiki Migration
 
-Так как Wiki в Azure DevOps — это обычный Git-репозиторий, мы переносим его через Git, но предварительно "чиним" Markdown-файлы.
+Since the Wiki in Azure DevOps is a standard Git repository, we migrate it via Git, but we "fix" the Markdown files first.
 
-1. Склонируйте старую Wiki на свой компьютер:
+1. Clone the old Wiki to your computer:
    ```bash
    git clone https://dev.azure.com/OLD_ORG/OLD_PROJ/_git/OLD_PROJ.wiki
    ```
-2. Натравите на эту папку наш встроенный скрипт:
+2. Point our built-in script at this folder:
    ```bash
-   python -m azdo_migrator.cli --config config.json --fix-wiki-repo /путь/к/склонированной/папке
+   python -m azdo_migrator.cli --config config.json --fix-wiki-repo /path/to/cloned/folder
    ```
    > [!NOTE]
-   > Скрипт использует ваш `migration_state.json` и API старого ADO, чтобы найти в Markdown-файлах все упоминания `#123` и абсолютные URL-ссылки `_wiki/wikis/.../Settings`, и заменяет их на новые валидные ссылки. Таким образом, **кросс-линки между Wiki и задачами работают в обе стороны!**
-3. Запушьте результат в новую Wiki:
+   > The script uses your `migration_state.json` and the old ADO API to find all `#123` mentions and absolute `_wiki/wikis/.../Settings` URL links in the Markdown files, replacing them with new valid links. Thus, **cross-links between the Wiki and tasks work in both directions!**
+3. Push the result to the new Wiki:
    ```bash
-   cd /путь/к/склонированной/папке
+   cd /path/to/cloned/folder
    git remote add target https://dev.azure.com/NEW_ORG/NEW_PROJ/_git/NEW_PROJ.wiki
    git push target main
    ```
 
-## Быстрый запуск
+## Quick Start
 
-Если вы уверены, что `user_mapping.json` генерируется идеально, вы можете запустить весь пайплайн (кроме Wiki) одной командой:
+If you are confident that `user_mapping.json` will be generated perfectly, you can run the entire pipeline (except the Wiki) with one command:
 ```bash
 python -m azdo_migrator.cli --config config.json --all
 ```
-Но рекомендуется проходить шаги последовательно для контроля качества миграции.
+However, it is recommended to go through the steps sequentially to control the migration quality.

@@ -66,7 +66,7 @@ def replace_wi_links_in_text(text: str, id_mapping: dict, source_org: str, sourc
         
         return match.group(0)
 
-    wiki_pattern = r'https://dev\.azure\.com/[^/]+/[^/]+/_wiki/wikis/[^/]+/(\d+)/[^\s"\'<>]+'
+    wiki_pattern = r'https://dev\.azure\.com/[^/]+/[^/]+/_wiki/wikis/[^/]+/(\d+)/[^\s"\'<>)]+'
     new_text = re.sub(wiki_pattern, wiki_replacer, new_text)
 
     # Now replace plain text mentions like #1234 or US1234 using BeautifulSoup
